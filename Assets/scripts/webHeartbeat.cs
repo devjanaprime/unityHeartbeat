@@ -12,71 +12,88 @@ public class webHeartbeat : MonoBehaviour
         public string password;
     }
 
-    public float pollingRate = 30.0f;
-    float pollingThreshold;
     public string loginUrl; // "http://squidfall-connect.herokuapp.com/users/sign_in.json";
     public string pollingUrl; // "http://squidfall-connect.herokuapp.com/sites.json";
     public string email;
     public string password;
-    bool loggedIn = false;
+    int autoTriggers;
+    int motionTriggers;
+    public string postUrl;
 
     static string BuildLoginData(string email, string password){
         return string.Format("{{ \"user\": {{ \"email\": \"{0}\", \"password\": \"{1}\" }} }}", email, password);
     }
 
-    void resetPoll(){
-        pollingThreshold = Time.time + Time.timeSinceLevelLoad;
-    } //end restPoll
-
     // Start is called before the first frame update
     void Start(){
-        resetPoll();
+        print( "bootin' up and loggin' in, yo" );
+        StartCoroutine( logIn() );
     } // end Start
 
     // Update is called once per frame
     void Update(){
-        if( Time.time > pollingThreshold ){
-            if( loggedIn ) {
-                StartCoroutine( heartbeat() );
-            } // end loggedIn
-            else{
-                print( "not loggedIn, logging in now" );
-                StartCoroutine( logIn() );
-            } // end login
-        } // end time to Poll
+        /// - test by button push
+        if( Input.GetKeyDown( "l" ) ){
+            StartCoroutine( logIn() );
+        }
+        if( Input.GetKeyDown( "s" ) ){
+            StartCoroutine( getSettings() );
+        }
+        if( Input.GetKeyDown( "r" ) ){
+            StartCoroutine( sendReport() );
+        }
     } // end update
-    IEnumerator heartbeat(){
+
+    IEnumerator getSettings(){
         UnityWebRequest www = UnityWebRequest.Get( pollingUrl ); 
         yield return www.SendWebRequest();
         if( www.isNetworkError || www.isHttpError ){
-            print(www.error);
+            print( www.error );
         } // end error
         else{
-            print( "heartbeat beated: " + www.downloadHandler.text );
+            print( "settings received: " + www.downloadHandler.text );
         } // end heartbeat beated
-        resetPoll();
     } //end Heartbeat
 
     IEnumerator logIn(){
+        print( "logging in" );
         UploadHandler uh = new UploadHandlerRaw( System.Text.Encoding.ASCII.GetBytes(BuildLoginData(email, password))){
             contentType = "application/json"
         };
         DownloadHandler dh = new DownloadHandlerBuffer();
-        // Uri uri = new Uri(ApiAccess.base_uri, ApiAccess.sign_in_relative_uri);
         UnityWebRequest www = new UnityWebRequest(loginUrl, UnityWebRequest.kHttpVerbPOST, dh, uh);
-
-        // WWWForm form = new WWWForm();
-        // // log in info
-        // form.AddField( "user", jsonCreds );
-        // UnityWebRequest www = UnityWebRequest.Post( loginUrl, form );
         yield return www.SendWebRequest();
         if( www.isNetworkError || www.isHttpError ){
             print( www.error );
-            loggedIn = false;
         } // end error
         else{
             print( "logged in: " + www.downloadHandler.text );
-            loggedIn = true;
         } // end loggedInt
     } // end logIn
+    
+    IEnumerator sendReport(){
+        WWWForm dataToPost = new WWWForm();
+        /// - temp/test  
+        dataToPost.AddField("autoTriggers", 2 );
+        dataToPost.AddField("motionTrigger", 3 );
+        UnityWebRequest www = UnityWebRequest.Post( postUrl, dataToPost );
+        yield return www.SendWebRequest();
+        if( www.isNetworkError || www.isHttpError ){
+            print( www.error );
+        } // end error
+        else{
+            print( "back from POST with: " + www.downloadHandler.text );
+            // clear for next report
+            autoTriggers = 0;
+            motionTriggers = 0;
+        } // end POST
+    } //end post
+
+    void autoTrigger(){
+        autoTriggers++;
+    }
+    
+    void motionTrigger(){
+        motionTriggers++;
+    }
 } // end class
